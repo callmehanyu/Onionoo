@@ -1,45 +1,50 @@
+package compare;
+
 import com.alibaba.fastjson.JSONReader;
+import details.Onionoo_documents_details;
 import details.Relays;
 
-import java.io.FileNotFoundException;
-import java.io.FileReader;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
-public class Compare {
-    String filePath;
+public class CompareImpl implements Compare {
+    JSONReader reader;
+
     int ABW_factor;
     int len;
+    int[] count;
+    double[] sum;
+    double[] res;
+    List<Double> diff;
 
-    public Compare(String filePath, int ABW_factor, int len) {
-        this.filePath = filePath;
-        this.ABW_factor = ABW_factor;
-        this.len = len;
+    public CompareImpl(JSONReader reader,int ABW_factor,int len) {
+        this.reader=reader;
+        this.ABW_factor=ABW_factor;
+        this.len=len;
+        count=new int[len];
+        sum=new double[len];
+        res=new double[len];
+        diff=new ArrayList<>();
     }
 
-    public void compare(){
-        int[] count=new int[len];
-        double[] sum=new double[len];
-        double[] res=new double[len];
-
+    @Override
+    public void compare() {
+        reader.startArray();
         Relays relays=null;
 
-        JSONReader reader = null;
-        try {
-            reader = new JSONReader(new FileReader(filePath));
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        }
-
-        reader.startArray();
-        while(reader.hasNext()) {
+        while (reader.hasNext()){
             relays = reader.readObject(Relays.class);
+
             int index=(int)Math.ceil(relays.getAdvertised_bandwidth()/Math.pow(10,ABW_factor));
 //            if (!relays.getRunning()) break;
 //            if (!relays.getFlags().contains("Valid")) break;
 //            if (!relays.getFlags().contains("Fast")) break;
-            if (index>=20 && index<=40){
+
+            //Guard
+            if (index>=40 && index<=104){
                 if (relays.getFlags().contains("Guard")){
-                    if (relays.getFlags().contains("Stable") && "0.4.3".equals(relays.getVersion().substring(0,5))) {
+                    if (relays.getFlags().contains("Stable") && "0.4.2".equals(relays.getVersion().substring(0,5))) {
                         count[0]++;
                         sum[0]+=relays.getGuard_probability();
                     }else {
@@ -48,6 +53,7 @@ public class Compare {
                     }
                 }
             }
+            //Middle
             if (index>=20 && index<=40){
                 if ((!relays.getFlags().contains("Guard")) && (!relays.getFlags().contains("Exit")) ){
                     if ((!relays.getFlags().contains("Stable")) && "0.4.2".equals(relays.getVersion().substring(0,5))) {
@@ -59,9 +65,10 @@ public class Compare {
                     }
                 }
             }
-            if (index>=20 && index<=40){
+            //Exit
+            if (index>=0 && index<=5){
                 if (relays.getFlags().contains("Exit")){
-                    if ((relays.getFlags().contains("Stable")) && "0.4.2".equals(relays.getVersion().substring(0,5))) {
+                    if ((!relays.getFlags().contains("Stable")) && "0.4.2".equals(relays.getVersion().substring(0,5))) {
                         count[4]++;
                         sum[4]+=relays.getExit_probability();
                     }else {
@@ -74,9 +81,10 @@ public class Compare {
         }
         for (int i = 0; i < len; i++) {
             res[i]=sum[i]/count[i];
+            if ((i&1)==1) diff.add(res[i]-res[i-1]);
         }
-        System.out.println(Arrays.toString(res));
+
+        System.out.println(diff);
         reader.endArray();
-        reader.close();
     }
 }

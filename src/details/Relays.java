@@ -20,7 +20,7 @@ public class Relays
     private String first_seen;
 
     private boolean running;
-
+    //list
     private Set<String> flags;
 
     private String country;
